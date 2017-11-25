@@ -1,0 +1,173 @@
+---
+title: "Project - Number Of Steps Taken Weekend vs Weekday "
+author: "JRSrednas"
+date: "November 24, 2017"
+output: html_document
+---
+### Summary
+The goal of the analysis of step activity was to determine, based upon the data provided if individuals stepped more on weekends or weekdays. The participants steps were measured in 5 second intervals. The analysis was completed in two parts. Part one processed un-imputated data and part two included imputation. An table containing the average amount of steps for each interval over sixty one days was appealed to for imputation for missing data. In the end, more steps appeared to be on the weekends. 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Importing Data and Profiling Data Set
+```{r, echo = TRUE}
+setwd("C:/Users/jrsanders/Documents/2017_Reproduce/repdata_data_activity")
+library(lubridate)
+library(dplyr)
+library(lattice)
+activ<-data.frame()
+activ<- read.csv("activity.csv")
+dim(activ)
+head(activ)
+colnames(activ)
+```
+
+## Number Of NA's in the data set
+```{r, echo = TRUE}
+colSums(is.na(activ))
+# str(activ)
+#### Part 0 - Quantity of Missing Values in Dataset
+print(colSums(is.na(activ)))
+```
+### Creating Complete Cases Thus No Imputation
+```{r, echo = TRUE}
+cact <- activ[complete.cases(activ),]
+intstps<- aggregate(steps ~ interval , cact, mean)
+```
+#### Time Series Plot of Average Number Of Steps Taken
+```{r, echo = TRUE}
+plot(intstps$interval,intstps$steps, type = "l",xlab="SecondsInterval",
+     ylab="Average Number Of Steps")
+```
+
+#### The 5 Minute Interval That on Average Contains the Max Number of Steps
+```{r, echo = TRUE}
+local <- vector()
+local <- intstps$steps
+print(intstps[which.max(local),])
+```
+
+### Typing The Date and Steps Fields 
+```{r echo = TRUE}
+activ$date<- as.Date(activ$date )
+activ$steps <- as.numeric(activ$steps)
+```
+
+#### Determining the mean and median of steps taken each day
+```{r, echo = TRUE}
+part1<-data.frame()
+##### Calculating the Total Amount of Steps Per Day
+part1<-activ %>% group_by(date) %>% summarize(sum(steps,na.rm=TRUE))
+print(part1)
+names(part1)[2] <- "sumsteps"
+summary(part1$sumsteps)
+```
+```{r, echo = TRUE}
+################### Mean and Median Zeros Filtered Out#######
+ppart<- subset(part1, sumsteps > 0)
+average <- mean(ppart$sumsteps,na.rm=TRUE)
+medianmark <- median(ppart$sumsteps,na.rm=TRUE)
+summary(ppart$sumsteps);print(average); print(medianmark)
+```
+
+
+#### Histogram of The Total Numbers of Steps Taken Each Day - No Imputation
+```{r, echo = TRUE}
+library(ggplot2)
+ggplot(part1,aes(x=sumsteps)) + 
+  geom_histogram(fill = "blue", color = "black", binwidth = 1000) + 
+  labs(title = "Histogram of Steps", x= "steps", y = " Frequency") + theme_bw()
+# head(part1)
+
+```
+### Code To Describe and Show Imputing Strategy
+```{r}
+```
+#### Imputation of data - Create a table containg the mean for each 5 minute interval. A dataframe containing time intervals and the correspond average is created.
+```{r, echo = TRUE}
+cact <- activ[complete.cases(activ),]
+intstps<- aggregate(steps ~ interval , cact, mean)
+rowcount<- nrow(activ) 
+# print(rowcount)
+### THE IMPUTATION OF THE DATA SET
+```
+####  Identify the row that contains NA steps and the corresponding time interval. for all NA's. Populate the NA's with the average time for that interval of time.
+```{r, echo= TRUE}
+impactiv2 <- read.csv("activity.csv")
+count <- nrow(impactiv2)
+   for ( i in 1:rowcount) {
+     if ( is.na(impactiv2$steps[i])) {
+      
+       intervaltime = impactiv2$interval[i]  
+       rowid = which(intstps$interval == intervaltime)
+       avsteps = intstps$steps[rowid]
+  ##### Back in The Main Table
+      impactiv2$steps[i]<- avsteps
+     } else {
+       # print(Sys.time())
+     }
+     # print("End of For Loop")
+   }
+print(head(impactiv2,10)) 
+summary(is.na(impactiv2))
+print(colSums(is.na(impactiv2)))
+```
+```{r, echo = TRUE}
+part2v <-data.frame()
+##### Calculating the Total Amount of Steps Per Day                       #
+part2v <-impactiv2 %>% group_by(date) %>% summarize(sum(steps,na.rm=TRUE))
+head(part2v,6)
+names(part2v)[2] <- "sumsteps"
+head(part2v,3)
+summary(part2v$sumsteps)
+library(ggplot2)
+ggplot(part2v, aes(x=sumsteps)) + 
+  geom_histogram(fill = "purple", color = "black", binwidth = 1000) + 
+  labs(title = "Histogram of Steps With Imputed Data", x= "steps", y = " NumDays") + theme_bw()
+```
+
+#### Adding days of the week to imputed data
+```{r, echo = TRUE}
+impactiv2$day <- weekdays(as.Date(impactiv2$date))
+dayys <- weekdays(as.Date(impactiv2$date))
+dim(impactiv2)
+head(impactiv2,3)
+```
+
+#####  Adding Weekend and Weekday Column
+```{r, echo = TRUE}
+ for ( i in 1:17568 ){
+       if  (impactiv2[i,4] == "Saturday") {
+      
+         impactiv2[i,5] = "Weekend"
+       } else if (impactiv2[i,4] == "Sunday") {
+         
+         impactiv2[i,5] = "Weekend"
+       }
+       else    {
+      
+         impactiv2[i,5] = "Weekday"
+       }  #### END OF ELSE 
+ }
+```
+```{r, echo = "TRUE"}
+chkpt <-subset(impactiv2,day== "Sunday" | day == "Saturday" | day == "Monday")
+head(chkpt,4)
+```
+```{r}
+# weekdays <- c("Monday","Tuesday","Wednesday","Thursday","Friday")
+imputesteps <- aggregate(steps ~ interval + V5, impactiv2,mean )
+```
+###  Panel Plot Averaged Steps Across Weekends and Weekdays
+```{r, echo = TRUE }
+xyplot(imputesteps$steps ~ imputesteps$interval | imputesteps$V5, impactiv2, type = "l", layout =c(1,2),
+            xlab = "Intervals", ylab = "Number of Steps")  
+```
+
+```{r}
+```
+### Results 
+The graph above can be used to see the difference in between Weedend steps and Weekday steps taken.One can see there is a period during the week, where more steps appear to be taken but the changes.  More steps appear to be taken on the weekend after 1000th interval. 
+
+
